@@ -46,3 +46,5 @@ language_model/pretrained_language_models/**
 
 # Environment files
 .env
+model_training_new/trained_models/**
+model_training_new/wandb/**
