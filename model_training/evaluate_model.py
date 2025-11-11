@@ -38,6 +38,7 @@ eval_type = args.eval_type  # can be 'val' or 'test'. if 'test', ground truth is
 # load csv file
 b2txt_csv_df = pd.read_csv(args.csv_path)
 
+
 # load model args
 model_args = OmegaConf.load(os.path.join(model_path, 'checkpoint/args.yaml'))
 
@@ -98,6 +99,7 @@ for session in model_args['dataset']['sessions']:
 print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
+test_data = test_data[:,10]
 
 # put neural data through the pretrained model to get phoneme predictions (logits)
 with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='trial') as pbar:
