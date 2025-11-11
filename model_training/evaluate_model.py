@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-import panda as pd
+import pandas as pd
 import redis
 from omegaconf import OmegaConf
 import time
