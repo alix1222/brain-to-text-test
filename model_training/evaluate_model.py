@@ -102,13 +102,18 @@ for session in model_args['dataset']['sessions']:
 print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
-# Optionally limit to a subset for faster debugging
+# ---- OPTIONAL SUBSET (fast debug) ----
 if args.subset_size is not None:
     for session in test_data.keys():
-        for key in test_data[session]:
-            if isinstance(test_data[session][key], list):
-                test_data[session][key] = test_data[session][key][:args.subset_size]
-    print(f"\n⚠️  Limiting evaluation to {args.subset_size} trials per session.\n")
+        for key, val in test_data[session].items():
+            if isinstance(val, list):
+                test_data[session][key] = val[:args.subset_size]
+    # recompute total after trimming
+    total_test_trials = sum(len(test_data[s]['neural_features']) for s in test_data)
+    print(f"\n⚠️  Limiting evaluation to {args.subset_size} trials per session. "
+          f"New total: {total_test_trials}\n")
+# --------------------------------------
+
 
 # put neural data through the pretrained model to get phoneme predictions (logits)
 with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='trial') as pbar:
@@ -190,6 +195,9 @@ lm_results = {
     'trial': [],
     'true_sentence': [],
     'pred_sentence': [],
+    # NEW:
+    'nbest_sentences': [],
+    'nbest_scores': [],
 }
 
 # loop through all trials and put logits into the remote language model to get text predictions
@@ -232,6 +240,14 @@ with tqdm(total=total_test_trials, desc='Running remote language model', unit='t
 
             # get the best candidate sentence
             best_candidate_sentence = lm_out['candidate_sentences'][0]
+
+            # Store full n-best (sentences + optional scores) if available
+            nbest_sents = lm_out.get('candidate_sentences', [])
+            nbest_scores = lm_out.get('candidate_total_scores', []) 
+
+            lm_results['nbest_sentences'].append(nbest_sents)
+            lm_results['nbest_scores'].append(nbest_scores)
+
 
             # store results
             lm_results['session'].append(session)
@@ -303,16 +319,21 @@ elif eval_type == 'val':
     wers = [ed / n if n > 0 else 0 for ed, n in zip(edit_distances, num_words)]
 
     df_out = pd.DataFrame({
-        'id': ids,
-        'true_sentence': true_sentences,
-        'predicted_sentence': pred_sentences,
-        'edit_distance': edit_distances,
-        'num_words': num_words,
-        'WER': wers
-    })
+    'id': ids,
+    'true_sentence': true_sentences,
+    'predicted_sentence': pred_sentences,
+    'edit_distance': edit_distances,
+    'num_words': num_words,
+    'WER': wers,
+    # NEW:
+    'nbest_sentences_json': [json.dumps(x) for x in lm_results['nbest_sentences']],
+    'nbest_scores_json':   [json.dumps(x) for x in lm_results['nbest_scores']],
+})
 
     # Save to CSV
     df_out.to_csv(output_file, index=False)
     print(f"\n✅ Results saved to: {output_file}")
     print(f"Saved {len(df_out)} sentences with individual WER values.")
+
+
 
