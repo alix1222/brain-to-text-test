@@ -651,9 +651,14 @@ def main(args):
                 
                 logging.info(f'Final:  {decoded_final}')
                 if nbest > 1:
-                    r.xadd(final_output_stream, {'lm_response_final': decoded_final, 'scoring': ';'.join(nbest_redis), 'context_str': current_context_str})
+                    r.xadd(final_output_stream, {'lm_response_final': decoded_final, 
+                                                 'scoring': ';'.join(nbest_redis), 
+                                                 'context_str': current_context_str, 
+                                                 'num_ngram_candidates': str(nbest_out_len),
+                                                 'num_augmented_candidates': str(len(nbest_out)),})
                 else:   
-                    r.xadd(final_output_stream, {'lm_response_final': decoded_final})
+                    r.xadd(final_output_stream, {'lm_response_final': decoded_final, 'num_ngram_candidates': str(nbest_out_len),
+                                                 'num_augmented_candidates': str(len(nbest_out)),})
 
                 logging.info('Finalized the language model.\n')
                 r.xadd('remote_lm_done_finalizing', {'done': 1})

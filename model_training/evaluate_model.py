@@ -200,6 +200,8 @@ lm_results = {
     # NEW:
     'nbest_sentences': [],
     'nbest_scores': [],
+    'num_ngram_candidates': [],
+    'num_augmented_candidates': [],
 }
 
 # loop through all trials and put logits into the remote language model to get text predictions
@@ -249,6 +251,10 @@ with tqdm(total=total_test_trials, desc='Running remote language model', unit='t
 
             lm_results['nbest_sentences'].append(nbest_sents)
             lm_results['nbest_scores'].append(nbest_scores)
+
+            lm_results['num_ngram_candidates'].append(lm_out.get('num_ngram_candidates', None))
+            lm_results['num_augmented_candidates'].append(lm_out.get('num_augmented_candidates', None))
+
 
 
             # store results
@@ -317,6 +323,9 @@ elif eval_type == 'val':
     edit_distances = lm_results['edit_distance']
     num_words = lm_results['num_words']
 
+    num_ngram_candidates = lm_results.get('num_ngram_candidates', [None] * len(ids))
+    num_augmented_candidates = lm_results.get('num_augmented_candidates', [None] * len(ids))
+
     # Compute WER per sentence
     wers = [ed / n if n > 0 else 0 for ed, n in zip(edit_distances, num_words)]
 
@@ -328,8 +337,11 @@ elif eval_type == 'val':
     'num_words': num_words,
     'WER': wers,
     # NEW:
+    'num_ngram_candidates': num_ngram_candidates,
+    'num_augmented_candidates': num_augmented_candidates,
     'nbest_sentences_json': [json.dumps(x) for x in lm_results['nbest_sentences']],
     'nbest_scores_json':   [json.dumps(x) for x in lm_results['nbest_scores']],
+    
 })
 
     # Save to CSV

@@ -256,6 +256,9 @@ def finalize_remote_lm(
         candidate_ngram_scores = [float(c) for c in entry_data[b'scoring'].decode().split(';')[2::5]]
         candidate_llm_scores = [float(c) for c in entry_data[b'scoring'].decode().split(';')[3::5]]
         candidate_total_scores = [float(c) for c in entry_data[b'scoring'].decode().split(';')[4::5]]
+        num_ngram = int(entry_data[b'num_ngram_candidates'].decode()) if b'num_ngram_candidates' in entry_data else None
+        num_augmented = int(entry_data[b'num_augmented_candidates'].decode()) if b'num_augmented_candidates' in entry_data else None
+
 
 
     # account for a weird edge case where there are no candidate sentences
@@ -287,11 +290,14 @@ def finalize_remote_lm(
             candidate_total_scores.pop(i)
 
     lm_out = {
-        'candidate_sentences': candidate_sentences,
-        'candidate_acoustic_scores': candidate_acoustic_scores,
-        'candidate_ngram_scores': candidate_ngram_scores,
-        'candidate_llm_scores': candidate_llm_scores,
-        'candidate_total_scores': candidate_total_scores,
-    }
+    'candidate_sentences': candidate_sentences,
+    'candidate_acoustic_scores': candidate_acoustic_scores,
+    'candidate_ngram_scores': candidate_ngram_scores,
+    'candidate_llm_scores': candidate_llm_scores,
+    'candidate_total_scores': candidate_total_scores,
+    'num_ngram_candidates': num_ngram,
+    'num_augmented_candidates': num_augmented,
+}
+
 
     return remote_lm_output_final_lastEntrySeen, lm_out
