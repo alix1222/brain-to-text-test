@@ -1,0 +1,48 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.so
+*.o
+
+# Build / packaging
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Logs & temporary files
+*.log
+*.tmp
+*.bak
+
+# Large data & model artifacts
+data/**
+*.hdf5
+*.h5
+*.pkl
+*.pt
+*.ckpt
+*.bin
+*.fst
+*.arpa
+*.npz
+*.npy
+dump.rdb
+
+# Pretrained language models
+language_model/pretrained_language_models/**
+
+# Environment files
+.env
+*.bin
+*.fst
+*.arpa
+*.npz
+*.npy
+dump.rdb
+
+# Pretrained language models
+language_model/pretrained_language_models/**
+
+# Environment files
+.env
