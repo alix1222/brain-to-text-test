@@ -25,6 +25,9 @@ parser.add_argument('--csv_path', type=str, default='../data/t15_copyTaskData_de
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
 parser.add_argument('--gpu_number', type=int, default=1,
                     help='GPU number to use for RNN model inference. Set to -1 to use CPU.')
+parser.add_argument('--subset_size', type=int, default=None,
+                    help='If set, only evaluate the first N trials per session (useful for debugging).')
+
 args = parser.parse_args()
 
 # paths to model and data directories
@@ -99,7 +102,13 @@ for session in model_args['dataset']['sessions']:
 print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
-test_data = test_data[:,10]
+# Optionally limit to a subset for faster debugging
+if args.subset_size is not None:
+    for session in test_data.keys():
+        for key in test_data[session]:
+            if isinstance(test_data[session][key], list):
+                test_data[session][key] = test_data[session][key][:args.subset_size]
+    print(f"\n⚠️  Limiting evaluation to {args.subset_size} trials per session.\n")
 
 # put neural data through the pretrained model to get phoneme predictions (logits)
 with tqdm(total=total_test_trials, desc='Predicting phoneme sequences', unit='trial') as pbar:
@@ -276,7 +285,7 @@ if eval_type == 'test':
     df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
     df_out.to_csv(output_file, index=False)
 
-else if eval_type == 'val':
+elif eval_type == 'val':
     # write predicted sentences to a csv file, including true sentence and WER
     output_file = os.path.join(
         model_path,
