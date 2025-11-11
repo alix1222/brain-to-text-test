@@ -268,7 +268,40 @@ if eval_type == 'val':
 
 
 # write predicted sentences to a csv file. put a timestamp in the filename (YYYYMMDD_HHMMSS)
-output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{time.strftime("%Y%m%d_%H%M%S")}.csv')
-ids = [i for i in range(len(lm_results['pred_sentence']))]
-df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
-df_out.to_csv(output_file, index=False)
+if eval_type == 'test':
+    output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{time.strftime("%Y%m%d_%H%M%S")}.csv')
+    ids = [i for i in range(len(lm_results['pred_sentence']))]
+    df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
+    df_out.to_csv(output_file, index=False)
+
+else if eval_type == 'val':
+    # write predicted sentences to a csv file, including true sentence and WER
+    output_file = os.path.join(
+        model_path,
+        f'baseline_rnn_{eval_type}_predicted_sentences_{time.strftime("%Y%m%d_%H%M%S")}.csv'
+    )
+
+    # Build the dataframe with everything you want to keep
+    ids = list(range(len(lm_results['pred_sentence'])))
+    true_sentences = lm_results['true_sentence']
+    pred_sentences = lm_results['pred_sentence']
+    edit_distances = lm_results['edit_distance']
+    num_words = lm_results['num_words']
+
+    # Compute WER per sentence
+    wers = [ed / n if n > 0 else 0 for ed, n in zip(edit_distances, num_words)]
+
+    df_out = pd.DataFrame({
+        'id': ids,
+        'true_sentence': true_sentences,
+        'predicted_sentence': pred_sentences,
+        'edit_distance': edit_distances,
+        'num_words': num_words,
+        'WER': wers
+    })
+
+    # Save to CSV
+    df_out.to_csv(output_file, index=False)
+    print(f"\n✅ Results saved to: {output_file}")
+    print(f"Saved {len(df_out)} sentences with individual WER values.")
+
