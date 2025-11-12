@@ -309,45 +309,45 @@ if eval_type == 'test':
     df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
     df_out.to_csv(output_file, index=False)
 
-elif eval_type == 'val':
-    # write predicted sentences to a csv file, including true sentence and WER
+if eval_type == 'val':
     output_file = os.path.join(
         model_path,
         f'baseline_rnn_{eval_type}_predicted_sentences_{time.strftime("%Y%m%d_%H%M%S")}.csv'
     )
 
-    # Build the dataframe with everything you want to keep
     ids = list(range(len(lm_results['pred_sentence'])))
     true_sentences = lm_results['true_sentence']
     pred_sentences = lm_results['pred_sentence']
     edit_distances = lm_results['edit_distance']
     num_words = lm_results['num_words']
-
     num_ngram_candidates = lm_results.get('num_ngram_candidates', [None] * len(ids))
     num_augmented_candidates = lm_results.get('num_augmented_candidates', [None] * len(ids))
-
-    # Compute WER per sentence
     wers = [ed / n if n > 0 else 0 for ed, n in zip(edit_distances, num_words)]
 
-    df_out = pd.DataFrame({
-    'id': ids,
-    'true_sentence': true_sentences,
-    'predicted_sentence': pred_sentences,
-    'edit_distance': edit_distances,
-    'num_words': num_words,
-    'WER': wers,
-    # NEW:
-    'num_ngram_candidates': num_ngram_candidates,
-    'num_augmented_candidates': num_augmented_candidates,
-    'nbest_sentences_json': [json.dumps(x) for x in lm_results['nbest_sentences']],
-    'nbest_scores_json':   [json.dumps(x) for x in lm_results['nbest_scores']],
-    
-})
+    expanded_rows = []
+    for i, (true_s, pred_s, ed, n, wer, ngram, aug, nbest_sents, nbest_scores) in enumerate(zip(
+        true_sentences, pred_sentences, edit_distances, num_words, wers,
+        num_ngram_candidates, num_augmented_candidates,
+        lm_results['nbest_sentences'], lm_results['nbest_scores']
+    )):
+        for rank, (cand_sent, cand_score) in enumerate(zip(nbest_sents, nbest_scores)):
+            expanded_rows.append({
+                'id': i,
+                'true_sentence': true_s,
+                'predicted_sentence': pred_s,
+                'edit_distance': ed,
+                'num_words': n,
+                'WER': wer,
+                'num_ngram_candidates': ngram,
+                'num_augmented_candidates': aug,
+                'candidate_rank': rank + 1,
+                'candidate_sentence': cand_sent,
+                'candidate_score': cand_score
+            })
 
-    # Save to CSV
+    df_out = pd.DataFrame(expanded_rows)
     df_out.to_csv(output_file, index=False)
     print(f"\n✅ Results saved to: {output_file}")
-    print(f"Saved {len(df_out)} sentences with individual WER values.")
-
+    print(f"Saved {len(df_out)} rows (expanded from {len(ids)} sentences).")
 
 
