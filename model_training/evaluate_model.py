@@ -27,8 +27,10 @@ parser.add_argument('--csv_path', type=str, default='../data/t15_copyTaskData_de
                     help='Path to the CSV file with metadata about the dataset (relative to the current working directory).')
 parser.add_argument('--gpu_number', type=int, default=1,
                     help='GPU number to use for RNN model inference. Set to -1 to use CPU.')
-parser.add_argument('--subset_size', type=int, default=None,
+parser.add_argument('--subset_size', type=int, default=700,
                     help='If set, only evaluate the first N trials per session (useful for debugging).')
+parser.add_argument('--N', type=int, default=10,
+                    help='number of N best candidate output by opt we feed to the LLM .')
 
 args = parser.parse_args()
 
@@ -40,8 +42,12 @@ data_dir = args.data_dir
 # define evaluation type
 eval_type = args.eval_type  # can be 'val' or 'test'. if 'test', ground truth is not available
 
+#define number of  candidate
+N = args.N
+
 # load csv file
 b2txt_csv_df = pd.read_csv(args.csv_path)
+
 
 
 # load model args
@@ -104,15 +110,37 @@ for session in model_args['dataset']['sessions']:
 print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
-# ---- OPTIONAL SUBSET (fast debug) ----
+
+# ---- limit total trials across all sessions ----
 if args.subset_size is not None:
-    for session in test_data.keys():
-        for key, val in test_data[session].items():
-            if isinstance(val, list):
-                test_data[session][key] = val[:args.subset_size]
-    # recompute total after trimming
+    target_size = args.subset_size
+    current_count = 0
+    sessions_to_remove = []
+
+    for session in list(test_data.keys()):
+        num_trials_in_session = len(test_data[session]['neural_features'])
+        trials_to_take = min(num_trials_in_session, target_size - current_count)
+        
+        if trials_to_take <= 0:
+            sessions_to_remove.append(session)
+            continue
+        
+        for key in test_data[session].keys():
+            if isinstance(test_data[session][key], list):
+                test_data[session][key] = test_data[session][key][:trials_to_take]
+
+        current_count += trials_to_take
+        
+        if current_count >= target_size:
+            current_index = list(test_data.keys()).index(session)
+            sessions_to_remove.extend(list(test_data.keys())[current_index + 1:])
+            break
+
+    for session in sessions_to_remove:
+        del test_data[session]
+
     total_test_trials = sum(len(test_data[s]['neural_features']) for s in test_data)
-    print(f"\n⚠️  Limiting evaluation to {args.subset_size} trials per session. "
+    print(f"\n⚠️  Limiting TOTAL evaluation trials to approximately {args.subset_size} across all sessions. "
           f"New total: {total_test_trials}\n")
 # --------------------------------------
 
@@ -196,12 +224,9 @@ lm_results = {
     'block': [],
     'trial': [],
     'true_sentence': [],
-    'pred_sentence': [],
-    # NEW:
+    'pred_sentence' : [],
     'nbest_sentences': [],
-    'nbest_scores': [],
-    'num_ngram_candidates': [],
-    'num_augmented_candidates': [],
+    'nbest_scores': []
 }
 
 # loop through all trials and put logits into the remote language model to get text predictions
@@ -317,29 +342,19 @@ if eval_type == 'val':
 
     ids = list(range(len(lm_results['pred_sentence'])))
     true_sentences = lm_results['true_sentence']
-    pred_sentences = lm_results['pred_sentence']
-    edit_distances = lm_results['edit_distance']
-    num_words = lm_results['num_words']
-    num_ngram_candidates = lm_results.get('num_ngram_candidates', [None] * len(ids))
-    num_augmented_candidates = lm_results.get('num_augmented_candidates', [None] * len(ids))
-    wers = [ed / n if n > 0 else 0 for ed, n in zip(edit_distances, num_words)]
 
     expanded_rows = []
     for i, (true_s, pred_s, ed, n, wer, ngram, aug, nbest_sents, nbest_scores) in enumerate(zip(
-        true_sentences, pred_sentences, edit_distances, num_words, wers,
-        num_ngram_candidates, num_augmented_candidates,
-        lm_results['nbest_sentences'], lm_results['nbest_scores']
+        true_sentences, lm_results['nbest_sentences'], lm_results['nbest_scores']
     )):
         for rank, (cand_sent, cand_score) in enumerate(zip(nbest_sents, nbest_scores)):
+            if rank >= N: 
+                break
+            
             expanded_rows.append({
                 'id': i,
                 'true_sentence': true_s,
                 'predicted_sentence': pred_s,
-                'edit_distance': ed,
-                'num_words': n,
-                'WER': wer,
-                'num_ngram_candidates': ngram,
-                'num_augmented_candidates': aug,
                 'candidate_rank': rank + 1,
                 'candidate_sentence': cand_sent,
                 'candidate_score': cand_score
