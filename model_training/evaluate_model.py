@@ -277,10 +277,6 @@ with tqdm(total=total_test_trials, desc='Running remote language model', unit='t
             lm_results['nbest_sentences'].append(nbest_sents)
             lm_results['nbest_scores'].append(nbest_scores)
 
-            lm_results['num_ngram_candidates'].append(lm_out.get('num_ngram_candidates', None))
-            lm_results['num_augmented_candidates'].append(lm_out.get('num_augmented_candidates', None))
-
-
 
             # store results
             lm_results['session'].append(session)
