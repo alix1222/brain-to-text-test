@@ -340,7 +340,7 @@ if eval_type == 'val':
     true_sentences = lm_results['true_sentence']
 
     expanded_rows = []
-    for i, (true_s, pred_s, nbest_sents, nbest_scores) in enumerate(zip(
+    for i, (true_s, nbest_sents, nbest_scores) in enumerate(zip(
         true_sentences, lm_results['nbest_sentences'], lm_results['nbest_scores']
     )):
         for rank, (cand_sent, cand_score) in enumerate(zip(nbest_sents, nbest_scores)):
