@@ -111,36 +111,71 @@ print(f'Total number of {eval_type} trials: {total_test_trials}')
 print()
 
 
-# ---- limit total trials across all sessions ----
+# # ---- limit total trials across all sessions ----
+# if args.subset_size is not None:
+#     target_size = args.subset_size
+#     current_count = 0
+#     sessions_to_remove = []
+
+#     for session in list(test_data.keys()):
+#         num_trials_in_session = len(test_data[session]['neural_features'])
+#         trials_to_take = min(num_trials_in_session, target_size - current_count)
+        
+#         if trials_to_take <= 0:
+#             sessions_to_remove.append(session)
+#             continue
+        
+#         for key in test_data[session].keys():
+#             if isinstance(test_data[session][key], list):
+#                 test_data[session][key] = test_data[session][key][:trials_to_take]
+
+#         current_count += trials_to_take
+        
+#         if current_count >= target_size:
+#             current_index = list(test_data.keys()).index(session)
+#             sessions_to_remove.extend(list(test_data.keys())[current_index + 1:])
+#             break
+
+#     for session in sessions_to_remove:
+#         del test_data[session]
+
+#     total_test_trials = sum(len(test_data[s]['neural_features']) for s in test_data)
+#     print(f"\n⚠️  Limiting TOTAL evaluation trials to approximately {args.subset_size} across all sessions. "
+#           f"New total: {total_test_trials}\n")
+# # --------------------------------------
+
+
+# ---- SKIP the first N trials (e.g., 700) and keep the rest ----
 if args.subset_size is not None:
-    target_size = args.subset_size
+    skip_limit = args.subset_size
     current_count = 0
     sessions_to_remove = []
 
     for session in list(test_data.keys()):
         num_trials_in_session = len(test_data[session]['neural_features'])
-        trials_to_take = min(num_trials_in_session, target_size - current_count)
-        
-        if trials_to_take <= 0:
-            sessions_to_remove.append(session)
-            continue
-        
-        for key in test_data[session].keys():
-            if isinstance(test_data[session][key], list):
-                test_data[session][key] = test_data[session][key][:trials_to_take]
 
-        current_count += trials_to_take
-        
-        if current_count >= target_size:
-            current_index = list(test_data.keys()).index(session)
-            sessions_to_remove.extend(list(test_data.keys())[current_index + 1:])
-            break
+        if current_count < skip_limit:
+            trials_to_skip = min(num_trials_in_session, skip_limit - current_count)
+            
+            if trials_to_skip == num_trials_in_session:
+                sessions_to_remove.append(session)
+                current_count += trials_to_skip
+                continue
+            
+            for key in test_data[session].keys():
+                if isinstance(test_data[session][key], list):
+                    test_data[session][key] = test_data[session][key][trials_to_skip:]
+            
+            current_count += trials_to_skip
+
+        else:
+            continue
 
     for session in sessions_to_remove:
         del test_data[session]
 
     total_test_trials = sum(len(test_data[s]['neural_features']) for s in test_data)
-    print(f"\n⚠️  Limiting TOTAL evaluation trials to approximately {args.subset_size} across all sessions. "
+    print(f"\n⚠️  SKIPPED the first {args.subset_size} trials. Keeping the rest for inference. "
           f"New total: {total_test_trials}\n")
 # --------------------------------------
 
